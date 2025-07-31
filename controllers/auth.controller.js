@@ -18,7 +18,7 @@ exports.register = asyncHandler(async (req, res, next) => {
 
   res
     .status(201)
-    .json({ status: "success", message: "User registered successfully", user });
+    .json({ status: "success", msg: "User registered successfully", user });
 });
 
 exports.login = asyncHandler(async (req, res, next) => {
@@ -43,7 +43,7 @@ exports.login = asyncHandler(async (req, res, next) => {
 
   res.status(200).json({
     status: "success",
-    message: "User logged in successfully",
+    msg: "User logged in successfully",
     user,
   });
 });

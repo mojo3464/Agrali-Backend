@@ -1,4 +1,5 @@
 const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 const User = require("../models/user.model");
 const generateToken = require("../utils/generateToken");
 const asyncHandler = require("express-async-handler");
@@ -47,3 +48,63 @@ exports.login = asyncHandler(async (req, res, next) => {
     user,
   });
 });
+
+exports.protect = asyncHandler(async (req, res, next) => {
+  let token;
+
+  // 1 - Get token from cookies instead of headers
+  if (req.cookies && req.cookies.token) {
+    token = req.cookies.token;
+  }
+
+  if (!token) {
+    return next(
+      new ApiError(
+        "You are not login, Please login to get access this route",
+        401
+      )
+    );
+  }
+
+  // 2 - Verify token
+  const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
+
+  // 3 - Check if user exists
+  const currentUser = await User.findById(decoded.userId);
+  if (!currentUser) {
+    return next(
+      new ApiError("The user that belong to this token no longer exist", 401)
+    );
+  }
+
+  // 4 - Check if user changed password after token was issued
+  if (currentUser.passwordChangedAt) {
+    const passChangeTimeStamp = parseInt(
+      currentUser.passwordChangedAt.getTime() / 1000,
+      10
+    );
+
+    if (passChangeTimeStamp > decoded.iat) {
+      return next(
+        new ApiError(
+          "User recently changed his password, please login again",
+          401
+        )
+      );
+    }
+  }
+
+  req.user = currentUser;
+  next();
+});
+
+exports.allowedTo = (...roles) =>
+  asyncHandler(async (req, res, next) => {
+    //1- check user role
+    if (!roles.includes(req.user.role))
+      return next(
+        new ApiError("You have no permission to perform this action", 403)
+      );
+
+    next();
+  });
